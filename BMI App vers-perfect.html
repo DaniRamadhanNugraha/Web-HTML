@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kalkulator & Tracker BMI</title>
+  <!-- Tambahan: Font Orbitron -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* 🔵 BACKGROUND FUTURISTIK */
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background: radial-gradient(ellipse at center, #0b0f1a 0%, #000000 100%);
+      font-family: 'Orbitron', sans-serif;
+      color: #00fff0;
+      overflow-x: hidden;
+    }
+
+    .grid {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to right, rgba(0, 255, 240, 0.04) 1px, transparent 1px),
+                  linear-gradient(to bottom, rgba(0, 255, 240, 0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      z-index: -3;
+      pointer-events: none;
+    }
+
+    .circle-hud {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 280px;
+      height: 280px;
+      transform: translate(-50%, -50%);
+      border: 2px solid rgba(0, 255, 240, 0.2);
+      border-radius: 50%;
+      box-shadow: 0 0 30px rgba(0, 255, 240, 0.4);
+      animation: pulse 3s infinite;
+      z-index: -2;
+      pointer-events: none;
+    }
+
+    @keyframes pulse {
+      0% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+      50% { transform: translate(-50%, -50%) scale(1.05); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+    }
+
+    .scan-lines {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      background-image: repeating-linear-gradient(
+        to bottom,
+        rgba(0, 255, 240, 0.02) 0px,
+        rgba(0, 255, 240, 0.02) 1px,
+        transparent 1px,
+        transparent 4px
+      );
+      z-index: -1;
+      animation: scanMove 5s linear infinite;
+      pointer-events: none;
+    }
+
+    @keyframes scanMove {
+      0% { background-position: 0 0; }
+      100% { background-position: 0 100%; }
+    }
+
+    /* SISA STYLE UTAMA APLIKASI BMI */
+    .container {
+      max-width: 800px;
+      margin: auto;
+      padding: 2rem;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0, 255, 240, 0.05);
+      color: white;
+      position: relative;
+      z-index: 1;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #00fff0;
+    }
+    label, p, select, input, button {
+      font-family: 'Segoe UI', sans-serif;
+    }
+    label {
+      display: block;
+      margin-top: 1rem;
+      color: #e0f7fa;
+    }
+    input, select, button {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    .nav {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    .nav button {
+      margin: 0.5rem;
+      padding: 0.5rem 1rem;
+      background-color: #00bcd4;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .result, .history {
+      margin-top: 2rem;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 5px;
+      color: #fff;
+    }
+    .warning {
+      color: red;
+    }
+    table {
+      width: 100%;
+      margin-top: 1rem;
+      border-collapse: collapse;
+      background: rgba(0,0,0,0.2);
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+      text-align: center;
+    }
+
+    #rekomendasi-bmi {
+      background-color: #f0f8ff;
+      border-left: 6px solid #0077b6;
+      padding: 15px 20px;
+      margin-top: 20px;
+      border-radius: 8px;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: #333;
+      line-height: 1.6;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+      transition: all 0.3s ease;
+    }
+    #rekomendasi-bmi b {
+      color: #005f73;
+      font-size: 16px;
+    }
+    #rekomendasi-bmi::before {
+      content: "🩺 ";
+      font-size: 20px;
+      margin-right: 5px;
+    }
+
+    .bmi-chart-container {
+      margin-top: 30px;
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      padding: 15px 20px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+    }
+    .bmi-bar {
+      display: flex;
+      height: 30px;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .bmi-bar > div {
+      height: 100%;
+      text-align: center;
+      font-size: 14px;
+      color: white;
+      line-height: 30px;
+      flex-shrink: 0;
+      position: relative;
+      cursor: pointer;
+    }
+    .bmi-bar > div::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 120%;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #333;
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      font-size: 13px;
+      z-index: 10;
+    }
+    .bmi-bar > div:hover::after {
+      opacity: 1;
+    }
+    .kurus { width: 25.25%; background-color: #4a90e2; }
+    .normal { width: 24.25%; background-color: #7ed957; }
+    .berlebih { width: 24.25%; background-color: #f5a623; }
+    .obesitas { width: 26.25%; background-color: #d0021b; }
+    .bmi-pointer {
+      position: relative;
+      top: 0px;
+      font-size: 18px;
+      transform: translateX(-50%);
+      transition: left 0.3s ease;
+      pointer-events: none;
+      width: 20px;
+      height: 20px;
+      margin-top: 5px;
+      z-index: 2;
+    }
+    .bmi-indicator {
+      position: absolute;
+      top: -5px;
+      width: 2px;
+      height: 40px;
+      background-color: #000;
+    }
+    .bmi-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #555;
+      margin-top: 5px;
+    }
+    @media (max-width: 600px) {
+      .bmi-bar-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      position: relative;
+      }
+      .bmi-bar {
+        display: flex;
+        width: 700px;
+        margin: 10px 0;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        position: relative;
+        flex-direction: column;
+        height: auto;
+      }
+      .bmi-bar > div {
+        flex: 1;
+        padding: 12px 10px;
+        text-align: center;
+        color: white;
+        position: relative;
+        width: 100% !important;
+        height: 50px;
+        font-size: 16px;
+        cursor: pointer; /* Pointer atau default */
+      }
+      .bmi-bar > div::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: -32px;
+        left: 50%;
+        top: 110%;
+        transform: translateX(-50%);
+        background-color: rgba(0, 0, 0, 0.75);
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 4px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+        font-size: 12px;
+        z-index: 10;
+      }
+      .bmi-indicator {
+        width: 100%;
+        height: 8px;
+        top: auto;
+        bottom: 0;
+      }
+    }
+    .bmi-bar > div:hover::after {
+      opacity: 1;
+    }
+
+    /* Tambahan jika ada style khusus dari aplikasi kamu sebelumnya, bisa ditempel di sini */
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <!-- 🔵 Elemen Latar Futuristik -->
+  <div class="grid"></div>
+  <div class="circle-hud"></div>
+  <div class="scan-lines"></div>
+
+  <!-- 🔷 Kontainer Aplikasi BMI -->
+  <div class="container">
+    <h1>Aplikasi Kalkulator & Tracker BMI</h1>
+    <div class="nav">
+      <button onclick="tampilkanHalaman('kalkulator')">Kalkulator BMI</button>
+      <button onclick="tampilkanHalaman('histori')">Histori BMI</button>
+      <button onclick="tampilkanHalaman('analisis')">Analisis Tubuh</button>
+    </div>
+
+      <!-- Kalkulator BMI -->
+    <div id="kalkulator">
+        <h2>Kalkulator BMI</h2>
+        <p>Silakan isi data berikut:</p>
+        <label for="berat">Berat Badan (kg):</label>
+        <input type="number" id="berat" step="0.1">
+
+        <label for="tinggi">Tinggi Badan (cm):</label>
+        <input type="number" id="tinggi" step="0.1">
+
+        <label for="gender">Jenis Kelamin:</label>
+        <select id="gender">
+        <option value="Laki-laki">Laki-laki</option>
+        <option value="Perempuan">Perempuan</option>
+        </select>
+
+        <label for="kondisi">Kondisi Khusus:</label>
+        <select id="kondisi">
+        <option value="Tidak Ada">Tidak Ada</option>
+        <option value="Atlet">Atlet</option>
+        <option value="Ibu Hamil">Ibu Hamil</option>
+        </select>
+
+        <button onclick="hitungBMI()">Hitung BMI</button>
+        <div id="output" class="result"></div>
+        <div id="rekomendasi-bmi" style="margin-top: 20px; font-size: 14px;"></div>
+    
+        <!-- Desain Grafik BMI -->
+        <div class="bmi-chart-container">
+        <div class="bmi-bar-scroll">
+            <div class="bmi-bar">
+            <div class="kurus" data-tooltip="Kurus: BMI < 18.5">Kurus</div>
+            <div class="normal" data-tooltip="Normal: 18.5 – 24.9">Normal</div>
+            <div class="berlebih" data-tooltip="Berlebih: 25 – 29.9">Berlebih</div>
+            <div class="obesitas" data-tooltip="Obesitas: ≥ 30">Obesitas</div>
+            </div>
+        </div>
+        <div class="bmi-pointer" id="bmi-pointer">🔻
+            <div class="bmi-indicator" id="bmi-indicator"></div>
+        </div>
+        <div class="bmi-labels">
+            <span>0</span>
+            <span>18.5</span>
+            <span>25</span>
+            <span>30</span>
+            <span>40</span>
+        </div>
+        </div>
+    </div>
+
+    <!-- Histori -->
+    <div id="histori" style="display:none">
+        <h2>Histori BMI Anda</h2>
+        <div class="history">
+        <table id="tabelHistori">
+            <thead>
+            <tr>
+                <th>Tanggal</th>
+                <th>Berat</th>
+                <th>Tinggi</th>
+                <th>BMI</th>
+                <th>Kategori</th>
+            </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <canvas id="grafikBMI" height="200"></canvas>
+        <button onclick="resetHistori()" style="margin-top: 1rem; background-color: #e74c3c;">🗑️ Reset Histori BMI</button>
+        </div>
+    </div>
+
+    <!-- Analisis Tambahan -->
+    <div id="analisis" style="display:none">
+        <h2>Analisis Tambahan Tubuh</h2>
+        <p>Silakan isi data berikut:</p>
+        <p>Hitung BMR, TDEE, Lemak Tubuh, WHR.</p>
+        <p>Basal Metabolic Rate (BMR) adalah jumlah kalori yang dibutuhkan tubuh untuk menjalankan fungsi dasar tubuh saat istirahat.</p>
+        <p>Total Daily Energy Expenditure (TDEE) adalah jumlah kalori yang dibutuhkan tubuh dalam sehari, termasuk aktivitas fisik.</p>
+        <p>Body Fat Percentage (BFP) adalah persentase lemak tubuh dari total berat badan.</p>
+        <p>Waist-to-Hip Ratio (WHR) adalah rasio lingkar pinggang terhadap lingkar pinggul, digunakan untuk menilai distribusi lemak tubuh.</p>
+        <label for="beratInput">Berat Badan (kg):</label>
+        <input type="number" id="beratInput" step="0.1">
+    
+        <label for="tinggiInput">Tinggi Badan (cm):</label>
+        <input type="number" id="tinggiInput" step="0.1">
+    
+        <label for="usiaInput">Usia:</label>
+        <input type="number" id="usiaInput">
+    
+        <label for="genderInput">Jenis Kelamin:</label>
+        <select id="genderInput">
+        <option value="Laki-laki">Laki-laki</option>
+        <option value="Perempuan">Perempuan</option>
+        </select>
+
+        <p>Aktivitas Harian:</p>
+        <p>Aktivitas harian Anda akan mempengaruhi kebutuhan kalori harian Anda.</p>
+        <p>Silakan pilih tingkat aktivitas Anda:</p>
+        <p>1. Sedentari (tidak aktif): Bekerja di meja, kerja kantoran, tidak berolahraga/minim gerak.</p>
+        <p>2. Ringan: Olahraga ringan 1-3 hari/minggu.</p>
+        <p>3. Sedang: Olahraga sedang 3-5 hari/minggu.</p>
+        <p>4. Berat: Olahraga berat 6-7 hari/minggu.</p>
+        <p>5. Ekstrem: Olahraga berat setiap hari, pekerjaan fisik berat, atlet profesional, dua kali latihan per hari.</p>
+        <p>Jika Anda seorang atlet, pilihlah aktivitas yang paling mendekati rutinitas Anda.</p>
+        <p>Jika Anda tidak berolahraga, pilihlah aktivitas yang paling mendekati rutinitas Anda.</p>  
+        <label for="aktivitasInput">Aktivitas:</label>
+        <select id="aktivitasInput">
+        <option value="Sedentari">Sedentari</option>
+        <option value="Ringan">Ringan</option>
+        <option value="Sedang">Sedang</option>
+        <option value="Berat">Berat</option>
+        <option value="Ekstrem">Ekstrem</option>
+        </select>
+    
+        <p>Lingkar Pinggang dan Lingkar Leher:</p>
+        <p>Lingkar pinggang dan lingkar leher digunakan untuk menghitung Body Fat Percentage (BFP) dan Waist-to-Hip Ratio (WHR).</p>
+        <p>Lingkar pinggul hanya diperlukan untuk wanita.</p>
+        <p>Lingkar pinggang diukur pada titik terkecil di sekitar perut, biasanya di atas pusar.</p>
+        <p>Lingkar leher diukur pada titik terendah di sekitar leher, biasanya di atas jaket atau kerah baju.</p>
+        <p>Lingkar pinggul diukur pada titik terlebar di sekitar pinggul.</p>
+        <p>Jika Anda seorang pria, Anda tidak perlu mengisi lingkar pinggul.</p>
+        <p>Jika Anda seorang wanita, Anda perlu mengisi lingkar pinggul.</p>
+        <p>Jika Anda tidak tahu cara mengukur lingkar pinggang, lingkar leher, dan lingkar pinggul, silakan cari di internet atau tanyakan kepada dokter atau ahli gizi.</p>
+        <label for="lingkarPinggang">Lingkar Pinggang (cm):</label>
+        <input type="number" id="lingkarPinggang" step="0.1">
+    
+        <label for="lingkarLeher">Lingkar Leher (cm):</label>
+        <input type="number" id="lingkarLeher" step="0.1">
+    
+        <div id="inputPinggulWrapper" style="display:none">
+        <label for="lingkarPinggul">Lingkar Pinggul (cm):</label>
+        <input type="number" id="lingkarPinggul" step="0.1">
+        </div>
+    
+        <label for="tujuanKalori">Tujuan Kalori:</label>
+        <select id="tujuanKalori">
+        <option value="netral">Pertahankan Berat Badan</option>
+        <option value="defisit">Penurunan Berat Badan (Defisit 500 kkal)</option>
+        <option value="surplus">Kenaikan Massa (Surplus 500 kkal)</option>
+        </select>
+    
+        <button onclick="hitungAnalisisTubuh()">Hitung</button>
+        <div id="hasilAnalisis" class="result"></div>
+        <canvas id="grafikLemak" height="200"></canvas>
+    </div>
+
+    <!-- Isi halaman: Kalkulator, Histori, Analisis → Tempelkan dari file asli kamu di sini -->
+    <!-- Untuk ringkas, bagian ini saya singkat. Jika kamu ingin saya bantu tempel seluruh isi, tinggal bilang! -->
+  </div>
+
+  <script>
+    // Fungsi navigasi halaman
+    function tampilkanHalaman(id) {
+      ['kalkulator', 'histori', 'analisis'].forEach(h => {
+        const el = document.getElementById(h);
+        if (el) el.style.display = h === id ? 'block' : 'none';
+      });
+    }
+
+    // Gabungkan updateBMIGrafik dan posisiPointerBMI agar pointer selalu sinkron
+    function updateBMIGrafik(bmi) {
+      const pointer = document.getElementById("bmi-pointer");
+      const bar = document.querySelector(".bmi-bar");
+      if (!pointer || !bar) return;
+
+      const totalWidth = bar.offsetWidth;
+      let persen = 0;
+
+      if (bmi < 18.5) {
+        persen = (bmi / 18.5) * 25;
+      } else if (bmi < 25) {
+        persen = 25 + ((bmi - 18.5) / (25 - 18.5)) * 25;
+      } else if (bmi < 30) {
+        persen = 50 + ((bmi - 25) / (30 - 25)) * 25;
+      } else {
+        persen = 75 + ((bmi - 30) / 10) * 25;
+        if (persen > 100) persen = 100;
+      }
+
+      const leftPos = (persen / 100) * totalWidth;
+      pointer.style.left = `${leftPos}px`;
+    }
+
+    function getRekomendasiBMI(kategori) {
+      if (kategori === "Kurus") {
+          return `💡 <b>Rekomendasi untuk kategori Kurus</b>:<br>
+          - Konsumsi makanan tinggi protein dan kalori sehat (nasi merah, alpukat, telur, daging tanpa lemak).<br>
+          - Tambahkan cemilan sehat (kacang, smoothies).<br>
+          - Lakukan latihan kekuatan (push-up, squat, angkat beban ringan).<br>
+          - Periksa kondisi kesehatan jika sulit naik berat badan.`;
+      } else if (kategori === "Normal (Ideal)") {
+          return `💡 <b>Rekomendasi untuk kategori Ideal</b>:<br>
+          - Pertahankan pola makan seimbang (sayur, buah, protein, karbohidrat kompleks).<br>
+          - Olahraga teratur minimal 3–4 kali per minggu (jalan cepat, lari ringan, yoga).<br>
+          - Cukup tidur dan kurangi stres.<br>
+          - Hindari perubahan berat drastis.`;
+      } else if (kategori === "Berat Badan Berlebih") {
+          return `💡 <b>Rekomendasi untuk kategori Berat Badan Berlebih</b>:<br>
+          - Kurangi konsumsi gula dan lemak jenuh.<br>
+          - Perbanyak sayuran, air putih, dan buah.<br>
+          - Mulai olahraga ringan (berjalan, berenang) dan tingkatkan perlahan.<br>
+          - Catat asupan kalori harian untuk pemantauan.`;
+      } else { // Obesitas
+          return `💡 <b>Rekomendasi untuk kategori Obesitas</b>:<br>
+          - Konsultasi ke ahli gizi jika memungkinkan.<br>
+          - Fokus pada defisit kalori sehat (hindari diet ekstrem).<br>
+          - Olahraga low-impact (aqua gym, yoga, sepeda statis).<br>
+          - Prioritaskan tidur cukup dan manajemen stres.`;
+      }
+    }
+
+    function hitungBMI() {
+      const berat = parseFloat(document.getElementById("berat").value);
+      const tinggi = parseFloat(document.getElementById("tinggi").value);
+      const gender = document.getElementById("gender").value;
+      const kondisi = document.getElementById("kondisi").value;
+      const output = document.getElementById("output");
+
+      if (tinggi <= 0 || berat <= 0) {
+        output.innerHTML = '<p class="warning">Masukkan berat dan tinggi yang valid.</p>';
+        return;
+      }
+
+      const tinggiM = tinggi / 100;
+      const bmi = berat / (tinggiM ** 2);
+      let kategori = "";
+
+      if (kondisi === "Atlet") kategori = "BMI tidak akurat untuk atlet";
+      else if (kondisi === "Ibu Hamil") kategori = "BMI tidak berlaku untuk ibu hamil";
+      else {
+        if (gender === "Perempuan") {
+          if (bmi < 18.0) kategori = "Kurus";
+          else if (bmi < 24.0) kategori = "Normal (Ideal)";
+          else if (bmi < 29.0) kategori = "Berat Badan Berlebih";
+          else kategori = "Obesitas";
+        } else {
+          if (bmi < 18.5) kategori = "Kurus";
+          else if (bmi < 25) kategori = "Normal (Ideal)";
+          else if (bmi < 30) kategori = "Berat Badan Berlebih";
+          else kategori = "Obesitas";
+        }
+      }
+
+      const bmiTarget = (gender === "Laki-laki") ? 22 : 21.5;
+      const beratIdeal = bmiTarget * (tinggiM ** 2);
+      const selisih = berat - beratIdeal;
+
+      let rekomendasi = "";
+      if (kategori === "Kurus") rekomendasi = "Konsumsi makanan bergizi dan olahraga kekuatan.";
+      else if (kategori === "Normal (Ideal)") rekomendasi = "Pertahankan pola hidup sehat dan seimbang.";
+      else if (kategori === "Berat Badan Berlebih") rekomendasi = "Kurangi asupan kalori dan mulai olahraga rutin.";
+      else if (kategori === "Obesitas") rekomendasi = "Konsultasi dengan ahli gizi dan perbaiki pola hidup.";
+
+      output.innerHTML = `
+        <p><strong>BMI Anda:</strong> ${bmi.toFixed(2)}</p>
+        <p><strong>Kategori:</strong> ${kategori}</p>
+        <p><strong>Berat Ideal:</strong> ${beratIdeal.toFixed(1)} kg</p>
+        ${kategori === "Berat Badan Berlebih" || kategori === "Obesitas" ? `<p><strong>Disarankan menurunkan berat sekitar:</strong> ${selisih.toFixed(1)} kg</p>` : ""}
+        <p><strong>Rekomendasi:</strong> ${rekomendasi}</p>
+      `;
+
+      document.getElementById("rekomendasi-bmi").innerHTML = getRekomendasiBMI(kategori);
+      updateBMIGrafik(bmi);
+
+      const histori = JSON.parse(localStorage.getItem('historiBMI')) || [];
+      histori.push({
+        tanggal: new Date().toLocaleString(),
+        berat, tinggi, bmi: bmi.toFixed(2), kategori
+      });
+      localStorage.setItem('historiBMI', JSON.stringify(histori));
+    }
+
+    // Fungsi untuk menampilkan histori BMI
+    function tampilkanHistori() {
+      const data = JSON.parse(localStorage.getItem('historiBMI')) || [];
+      const tbody = document.querySelector('#tabelHistori tbody');
+      tbody.innerHTML = data.map(d => `
+        <tr>
+          <td>${d.tanggal}</td>
+          <td>${d.berat}</td>
+          <td>${d.tinggi}</td>
+          <td>${d.bmi}</td>
+          <td>${d.kategori}</td>
+        </tr>
+      `).join('');
+
+      const ctx = document.getElementById('grafikBMI').getContext('2d');
+      if (window.chartBMI) window.chartBMI.destroy();
+      window.chartBMI = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.map(d => d.tanggal),
+          datasets: [{
+            label: 'BMI dari waktu ke waktu',
+            data: data.map(d => parseFloat(d.bmi)),
+            borderColor: 'blue',
+            backgroundColor: 'rgba(0, 0, 255, 0.1)',
+            tension: 0.3
+          }]
+        }
+      });
+    }
+
+    function resetHistori() {
+      if (confirm("Apakah Anda yakin ingin menghapus semua histori BMI?")) {
+        localStorage.removeItem('historiBMI');
+        tampilkanHistori();
+      }
+    }
+
+    //<!-- Bagian baru: Analisis Tubuh -->
+    document.getElementById('genderInput').addEventListener('change', function() {
+      document.getElementById('inputPinggulWrapper').style.display = this.value === 'Perempuan' ? 'block' : 'none';
+    });
+
+    function hitungAnalisisTubuh() {
+      try {
+        const berat = parseFloat(document.getElementById("beratInput").value);
+        const tinggi = parseFloat(document.getElementById("tinggiInput").value);
+        const usia = parseInt(document.getElementById("usiaInput").value);
+        const gender = document.getElementById("genderInput").value;
+        const aktivitas = document.getElementById("aktivitasInput").value;
+        const lingkarPinggang = parseFloat(document.getElementById("lingkarPinggang").value);
+        const lingkarLeher = parseFloat(document.getElementById("lingkarLeher").value);
+        const lingkarPinggul = gender === 'Perempuan' ? parseFloat(document.getElementById("lingkarPinggul").value) : NaN;
+        const tujuan = document.getElementById("tujuanKalori").value;
+
+        if (
+          [berat, tinggi, usia, lingkarPinggang, lingkarLeher].some(x => isNaN(x) || x <= 0) ||
+          (gender === 'Perempuan' && (isNaN(lingkarPinggul) || lingkarPinggul <= 0))
+        ) {
+          throw new Error("Semua input harus terisi dan valid.");
+        }
+
+        // Hitung BMR
+        const bmr = gender === "Laki-laki"
+          ? 10 * berat + 6.25 * tinggi - 5 * usia + 5
+          : 10 * berat + 6.25 * tinggi - 5 * usia - 161;
+
+        const aktivitasMap = {
+          Sedentari: 1.2,
+          Ringan: 1.375,
+          Sedang: 1.55,
+          Berat: 1.725,
+          Ekstrem: 1.9
+        };
+        const tdee = bmr * aktivitasMap[aktivitas];
+        const kalori = tujuan === 'defisit' ? tdee - 500 : (tujuan === 'surplus' ? tdee + 500 : tdee);
+
+        // Lemak tubuh (%): rumus U.S. Navy
+        const tinggiLog = Math.log10(tinggi);
+        let bodyFat;
+        if (gender === "Laki-laki") {
+          bodyFat = 495 / (1.0324 - 0.19077 * Math.log10(lingkarPinggang - lingkarLeher) + 0.15456 * tinggiLog) - 450;
+        } else {
+          bodyFat = 495 / (1.29579 - 0.35004 * Math.log10(lingkarPinggang + lingkarPinggul - lingkarLeher) + 0.221 * tinggiLog) - 450;
+        }
+
+        const whr = gender === 'Perempuan' ? lingkarPinggang / lingkarPinggul : lingkarPinggang / lingkarLeher;
+        const risiko = gender === 'Perempuan' ? (whr >= 0.85 ? "Risiko Tinggi" : "Normal") : (whr >= 0.90 ? "Risiko Tinggi" : "Normal");
+
+        // Tampilkan hasil
+        document.getElementById("hasilAnalisis").innerHTML = `
+          <p><strong>BMR:</strong> ${bmr.toFixed(2)} kkal/hari</p>
+          <p><strong>TDEE:</strong> ${tdee.toFixed(2)} kkal/hari</p>
+          <p><strong>Kalori Harian:</strong> ${kalori.toFixed(2)} kkal</p>
+          <p><strong>Lemak Tubuh:</strong> ${bodyFat.toFixed(2)}%</p>
+          <p><strong>WHR:</strong> ${typeof whr === "number" ? whr.toFixed(2) : whr} ${risiko !== "-" ? `→ ${risiko}` : ""}</p>
+        `;
+
+        const ctx = document.getElementById('grafikLemak').getContext('2d');
+        if (window.chartLemak) window.chartLemak.destroy();
+        window.chartLemak = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: ['Lemak Anda', 'Rata-rata Ideal'],
+            datasets: [{
+              data: [bodyFat, gender === 'Laki-laki' ? 18 : 25],
+              backgroundColor: ['orange', 'green']
+            }]
+          },
+          options: {
+            plugins: { legend: { display: false } },
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: { display: true, text: '% Lemak Tubuh' }
+              }
+            }
+          }
+        });
+      } catch (e) {
+        document.getElementById("hasilAnalisis").innerHTML = `<p class='warning'>${e.message}</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
